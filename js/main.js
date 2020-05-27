@@ -23,3 +23,18 @@ document.body.addEventListener("click", (event) => {
     hamburger.classList.add("open");
   }
 });
+
+function changeAttrs(elem) {
+  let tmp = elem.src;
+  elem.setAttribute("src", elem.dataset.backdrop);
+  elem.setAttribute("data-backdrop", tmp);
+}
+
+Array.from(document.querySelectorAll(".tv-card__img")).map((item) => {
+  item.addEventListener("mouseover", (event) => {
+    changeAttrs(event.target);
+  });
+  item.addEventListener("mouseout", (event) => {
+    changeAttrs(event.target);
+  });
+});

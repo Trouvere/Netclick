@@ -15,6 +15,11 @@ description = document.querySelector(".description");
 modalLink = document.querySelector(".modal__link");
 searchForm = document.querySelector(".search__form");
 searchFormInput = document.querySelector(".search__form-input");
+preloader = document.querySelector(".preloader");
+dropdown = document.querySelectorAll(".dropdown");
+tvShowsHead = document.querySelector(".tv-shows__head");
+posterWrapper = document.querySelector(".poster__wrapper");
+modalContent = document.querySelector(".modal__content");
 
 const loading = document.createElement("div");
 loading.className = "loading";
@@ -25,6 +30,7 @@ const DBService = class {
     this.API_KEY = "261e56954b4c05720d28746b757ad8ca";
   }
   getData = async (url) => {
+    tvShows.append(loading);
     const res = await fetch(url);
     if (res.ok) {
       return res.json();
@@ -50,12 +56,25 @@ const DBService = class {
     this.getData(
       `${this.SERVER}/tv/${id}?api_key=${this.API_KEY}&language=ru-RU`
     );
+  getTop = (item) => {
+    this.temp = `${this.SERVER}/tv/${item}?api_key=${this.API_KEY}&language=ru-RU`;
+    return this.getData(this.temp);
+  };
 };
+const dbService = new DBService();
 
-const renderCard = (response) => {
+const renderCard = (response, target) => {
   tvShowsList.textContent = "";
   console.log(response);
 
+  if (!response.total_results) {
+    loading.remove();
+    tvShowsHead.textContent = "К сожалению по запросу ничего не найдено";
+    tvShowsHead.style.cssText = "color: red;";
+    return;
+  }
+  tvShowsHead.textContent = target ? target.textContent : "Результат поиска";
+  tvShowsHead.style.cssText = "color: green;";
   response.results.forEach((item) => {
     const {
       backdrop_path: backdrop,
@@ -92,7 +111,6 @@ searchForm.addEventListener("submit", (event) => {
   event.preventDefault();
   const value = searchFormInput.value.trim();
   if (value) {
-    tvShows.append(loading);
     new DBService().getSearchResult(value).then(renderCard);
   }
   searchFormInput.value = "";
@@ -103,15 +121,25 @@ new DBService().getTestData().then((data) => {
   renderCard(data);
 });
 
+//  Side menu interaction
+// разобраться с ошибкой
+const closeDropDown = () => {
+  dropdown.forEach((item) => {
+    item.classList.remove("active");
+  });
+};
+
 hamburger.addEventListener("click", () => {
   leftMenu.classList.toggle("openMenu");
   hamburger.classList.toggle("open");
+  closeDropDown();
 });
 
 document.body.addEventListener("click", (event) => {
   if (!event.target.closest(".left-menu")) {
     leftMenu.classList.remove("openMenu");
     hamburger.classList.remove("open");
+    closeDropDown();
   }
 });
 
@@ -123,6 +151,34 @@ leftMenu.addEventListener("click", (event) => {
     leftMenu.classList.add("openMenu");
     hamburger.classList.add("open");
   }
+  if (target.closest("#top-rated")) {
+    tvShows.append(loading);
+    tvShowsHead.textContent = "ТОП сериалы";
+    dbService
+      .getTop("top_rated")
+      .then((response) => renderCard(response, target));
+  }
+  if (target.closest("#popular")) {
+    tvShows.append(loading);
+    tvShowsHead.textContent = "Популярные сериалы";
+    dbService
+      .getTop("popular")
+      .then((response) => renderCard(response, target));
+  }
+  if (target.closest("#today")) {
+    tvShows.append(loading);
+    tvShowsHead.textContent = "Популярные сегодня";
+    dbService
+      .getTop("airing_today")
+      .then((response) => renderCard(response, target));
+  }
+  if (target.closest("#week")) {
+    tvShows.append(loading);
+    tvShowsHead.textContent = "Популярные за неделю";
+    dbService
+      .getTop("on_the_air")
+      .then((response) => renderCard(response, target));
+  }
 });
 
 // open modal
@@ -130,6 +186,8 @@ tvShowsList.addEventListener("click", (event) => {
   const target = event.target;
   const card = target.closest(".tv-card");
   if (card) {
+    preloader.style.display = "block";
+
     new DBService()
       .getTvShow(card.id)
       .then(
@@ -141,8 +199,16 @@ tvShowsList.addEventListener("click", (event) => {
           overview,
           homepage,
         }) => {
-          tvCardImg.src = IMG_URL + posterPath;
-          tvCardImg.alt = title;
+          if (posterPath) {
+            tvCardImg.src = IMG_URL + posterPath;
+            tvCardImg.alt = title;
+            posterWrapper.style.display = "";
+            modalContent.style.paddingLeft = "";
+          } else {
+            posterWrapper.style.display = "none";
+            modalContent.style.paddingLeft = "25px";
+          }
+
           modalTitle.textContent = title;
           genresList.textContent = "";
           genres.forEach((item) => {
@@ -157,6 +223,9 @@ tvShowsList.addEventListener("click", (event) => {
       .then(() => {
         document.body.style.overflow = "hidden";
         modal.classList.remove("hide");
+      })
+      .finally(() => {
+        preloader.style.display = "none";
       });
     document.body.style.overflow = "hidden";
     modal.classList.remove("hide");

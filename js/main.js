@@ -20,6 +20,7 @@ dropdown = document.querySelectorAll(".dropdown");
 tvShowsHead = document.querySelector(".tv-shows__head");
 posterWrapper = document.querySelector(".poster__wrapper");
 modalContent = document.querySelector(".modal__content");
+pagination = document.querySelector(".pagination");
 
 const loading = document.createElement("div");
 loading.className = "loading";
@@ -30,7 +31,6 @@ const DBService = class {
     this.API_KEY = "261e56954b4c05720d28746b757ad8ca";
   }
   getData = async (url) => {
-    tvShows.append(loading);
     const res = await fetch(url);
     if (res.ok) {
       return res.json();
@@ -47,11 +47,14 @@ const DBService = class {
     return this.getData("card.json");
   };
 
-  getSearchResult = (query) =>
-    this.getData(
-      `${this.SERVER}/search/tv?api_key=${this.API_KEY}&language=ru-RU&query=${query}`
-    );
+  getSearchResult = (query) => {
+    this.temp = `${this.SERVER}/search/tv?api_key=${this.API_KEY}&language=ru-RU&query=${query}`;
+    return this.getData(this.temp);
+  };
 
+  getNextPage = (page) => {
+    return this.getData(this.temp + "&page" + page);
+  };
   getTvShow = (id) =>
     this.getData(
       `${this.SERVER}/tv/${id}?api_key=${this.API_KEY}&language=ru-RU`
@@ -65,6 +68,7 @@ const dbService = new DBService();
 
 const renderCard = (response, target) => {
   tvShowsList.textContent = "";
+
   console.log(response);
 
   if (!response.total_results) {
@@ -105,6 +109,12 @@ const renderCard = (response, target) => {
     loading.remove();
     tvShowsList.append(card);
   });
+  pagination.textContent = "";
+  if (target && response.total_pages > 1) {
+    for (let i = 1; i <= response.total_pages; i++) {
+      pagination.innerHTML += `<li>            <a href="#" class="pages">${i}  </a> </li>`;
+    }
+  }
 };
 
 searchForm.addEventListener("submit", (event) => {
@@ -178,6 +188,10 @@ leftMenu.addEventListener("click", (event) => {
     dbService
       .getTop("on_the_air")
       .then((response) => renderCard(response, target));
+  }
+  if (target.closest("#search")) {
+    tvShowsList.textContent = "";
+    tvShowsHead.textContent = "";
   }
 });
 
@@ -254,3 +268,11 @@ const changeImg = (event) => {
 
 tvShowsList.addEventListener("mouseover", changeImg);
 tvShowsList.addEventListener("mouseout", changeImg);
+pagination.addEventListener("click", (event) => {
+  event.preventDefault();
+  const target = event.target;
+  if (target.classList.contains("pages")) {
+    tvShows.append(loading);
+    dbService.getNextPage(target.textContent).then(renderCard);
+  }
+});
